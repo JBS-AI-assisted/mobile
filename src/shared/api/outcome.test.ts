@@ -21,6 +21,13 @@ describe('runRequest', () => {
     });
   });
 
+  it('does not call a malformed response "offline"', async () => {
+    const out = await runRequest('signIn', async () => {
+      throw new SyntaxError('Unexpected end of JSON input');
+    });
+    expect(out).toMatchObject({ ok: false, presentation: { message: 'Something went wrong on our side. Try again.' } });
+  });
+
   it('treats 429 without a body as rate limited and 5xx as generic', async () => {
     expect(await runRequest('resetRequest', async () => ({ error: '', response: res(429) }))).toMatchObject({
       presentation: { message: 'Too many requests. Try again in a few minutes.' },

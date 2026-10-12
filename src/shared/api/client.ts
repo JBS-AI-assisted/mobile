@@ -56,8 +56,22 @@ export function createAuthMiddleware(session: TokenSource, doFetch: typeof globa
   };
 }
 
+/**
+ * openapi-fetch skips body parsing only when Content-Length is "0", and React Native's fetch does
+ * not always expose that header on an empty response. Without it a 202 or 204 fails in JSON.parse.
+ */
+export function withEmptyBodies(doFetch: typeof globalThis.fetch): typeof globalThis.fetch {
+  return async (input, init) => {
+    const response = await doFetch(input, init);
+    if (response.status !== 202 && response.status !== 204 && response.status !== 205) return response;
+    const headers = new Headers(response.headers);
+    headers.set('Content-Length', '0');
+    return new Response(null, { status: response.status, statusText: response.statusText, headers });
+  };
+}
+
 export function createApiClient({ baseUrl, session, fetch: fetchImpl }: ApiClientOptions) {
-  const doFetch = fetchImpl ?? globalThis.fetch.bind(globalThis);
+  const doFetch = withEmptyBodies(fetchImpl ?? globalThis.fetch.bind(globalThis));
   const client = createClient<paths>({ baseUrl, fetch: doFetch });
   client.use(createAuthMiddleware(session, doFetch, baseUrl));
   return client;

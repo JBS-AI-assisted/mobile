@@ -21,7 +21,8 @@ function toApiError(body: unknown, status: number): ApiError {
 
 /**
  * Runs one API call and turns every way it can fail into an Outcome the UI can render.
- * fetch rejects only when no response arrived (offline, DNS, timeout), so any throw is "offline".
+ * fetch rejects with a TypeError when no response arrived (offline, DNS, refused connection).
+ * Anything else that throws (for example a body that is not valid JSON) is a server fault, not "offline".
  */
 export async function runRequest<T>(
   context: AuthContext,
@@ -30,8 +31,9 @@ export async function runRequest<T>(
   let result;
   try {
     result = await call();
-  } catch {
-    return failure(presentOffline(context));
+  } catch (error) {
+    if (error instanceof TypeError) return failure(presentOffline(context));
+    return failure(presentAuthError({ code: 'internal_error', message: '' }, context));
   }
   if (!result.error && result.response.ok) return { ok: true, data: result.data };
   const apiError = toApiError(result.error, result.response.status);

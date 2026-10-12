@@ -46,6 +46,16 @@ describe('api client', () => {
   });
 });
 
+describe('empty responses', () => {
+  it('accepts 202 and 204 even when Content-Length is missing', async () => {
+    const noHeader = () => new Response('', { status: 202 }); // no Content-Length, like RN on Android
+    const { client } = setup(noHeader, false);
+    const { response, error } = await client.POST('/auth/password-reset/request', { body: { email: 'a@b.co' } });
+    expect(response.status).toBe(202);
+    expect(error).toBeUndefined();
+  });
+});
+
 describe('isAuthRoute', () => {
   it('ignores the base URL path prefix', () => {
     expect(isAuthRoute('https://x.test/auth/login', 'https://x.test')).toBe(true);
