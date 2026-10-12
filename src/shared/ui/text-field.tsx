@@ -53,7 +53,7 @@ export function TextField({ label, error, helper, disabled = false, password = f
           editable={!disabled}
           secureTextEntry={password && !revealed}
           autoCorrect={password ? false : input.autoCorrect}
-          maxFontSizeMultiplier={fontScale.maxMultiplier}
+          maxFontSizeMultiplier={numeric ? fontScale.maxMultiplierLarge : fontScale.maxMultiplier}
           placeholderTextColor={colors.textSecondary}
           onFocus={(e) => {
             setFocused(true);
