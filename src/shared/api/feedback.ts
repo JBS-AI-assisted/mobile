@@ -5,6 +5,13 @@ export interface Feedback {
   fields: Record<string, string>;
 }
 
+/** Drops one field's error, so it disappears as soon as the user edits that field. */
+export function withoutFieldError(feedback: Feedback, field: string): Feedback {
+  if (!(field in feedback.fields)) return feedback;
+  const { [field]: _removed, ...fields } = feedback.fields;
+  return { ...feedback, fields };
+}
+
 /** Flattens an ErrorPresentation into what a form renders. Kinds a form cannot act on become the generic banner. */
 export function toFeedback(presentation: ErrorPresentation): Feedback {
   switch (presentation.kind) {

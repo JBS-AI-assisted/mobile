@@ -8,6 +8,6 @@ export {
   type AuthContext,
   type ErrorPresentation,
 } from './error-copy';
-export { toFeedback, type Feedback } from './feedback';
+export { toFeedback, withoutFieldError, type Feedback } from './feedback';
 export { failure, runRequest, type Outcome } from './outcome';
 export type { components, paths } from './schema';

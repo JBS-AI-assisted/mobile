@@ -78,7 +78,8 @@ type ColorSet = {
   background: string;
   surface: string;
   surfaceRaised: string;
-  border: string;
+  border: string; // decorative dividers and card edges only (below 3:1 by design)
+  borderStrong: string; // outline of interactive controls (fields): 3:1 on background and surface
   text: string;
   textSecondary: string; // AA on background and surface
   textOnPrimary: string;
@@ -97,6 +98,7 @@ export const colorsLight: ColorSet = {
   surface: '#ECE8DC',
   surfaceRaised: '#FCFAF4',
   border: '#D2CCBA',
+  borderStrong: '#827C6A',
   text: '#161B26',
   textSecondary: '#454C5C',
   textOnPrimary: '#F7F4EC',
@@ -115,6 +117,7 @@ export const colorsDark: ColorSet = {
   surface: '#161D31',
   surfaceRaised: '#1D2640',
   border: '#29324A',
+  borderStrong: '#6B7692',
   text: '#F2EFE6',
   textSecondary: '#A6AEC2',
   textOnPrimary: '#0D1220',

@@ -1,12 +1,11 @@
 import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
-import { AccessibilityInfo, Platform, View, type TextInput } from 'react-native';
+import { AccessibilityInfo, Platform, type TextInput } from 'react-native';
 
-import { toFeedback, useApi, type Feedback } from '@/shared/api';
+import { toFeedback, useApi, withoutFieldError, type Feedback } from '@/shared/api';
 import { RESEND_COOLDOWN_SECONDS } from '@/shared/config';
 import { useCountdown, validateNewPassword, validateResetCode } from '@/shared/lib';
-import { space } from '@/shared/theme';
-import { InlineBanner, PrimaryButton, TextButton, TextField } from '@/shared/ui';
+import { FormScreen, InlineBanner, PrimaryButton, TextButton, TextField } from '@/shared/ui';
 
 import { confirmReset, requestReset } from '../api/password-reset';
 
@@ -74,15 +73,37 @@ export function ConfirmResetForm({ email, onDone }: Props) {
     onDone();
   }
 
+  const footer = locked ? (
+    <PrimaryButton label="Resend code" loading={resending} onPress={resend} />
+  ) : (
+    <>
+      <PrimaryButton label="Set new password" loading={loading} onPress={submit} />
+      <TextButton
+        label={resendLabel}
+        muted={remaining > 0 || sentNotice}
+        disabled={remaining > 0 || resending || sentNotice}
+        onPress={resend}
+      />
+    </>
+  );
+
   return (
-    <View style={{ gap: space.md }}>
+    <FormScreen
+      title="Check your email"
+      body={`If an account exists for ${email}, a code is on its way. It works for 30 minutes.`}
+      footer={footer}
+    >
       {feedback.banner ? <InlineBanner variant={feedback.banner.variant} message={feedback.banner.message} /> : null}
       {locked ? null : (
         <>
           <TextField
             label="Code"
+            numeric
             value={code}
-            onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
+            onChangeText={(v) => {
+              setCode(v.replace(/\D/g, '').slice(0, 6));
+              setFeedback((f) => withoutFieldError(f, 'code'));
+            }}
             error={feedback.fields.code}
             disabled={loading}
             keyboardType="number-pad"
@@ -97,7 +118,10 @@ export function ConfirmResetForm({ email, onDone }: Props) {
             label="New password"
             password
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => {
+              setPassword(v);
+              setFeedback((f) => withoutFieldError(f, 'password'));
+            }}
             error={feedback.fields.password}
             helper="At least 10 characters."
             disabled={loading}
@@ -107,19 +131,8 @@ export function ConfirmResetForm({ email, onDone }: Props) {
             returnKeyType="go"
             onSubmitEditing={submit}
           />
-          <PrimaryButton label="Set new password" loading={loading} onPress={submit} />
         </>
       )}
-      {locked ? (
-        <PrimaryButton label="Resend code" loading={resending} onPress={resend} />
-      ) : (
-        <TextButton
-          label={resendLabel}
-          muted={remaining > 0 || sentNotice}
-          disabled={remaining > 0 || resending || sentNotice}
-          onPress={resend}
-        />
-      )}
-    </View>
+    </FormScreen>
   );
 }

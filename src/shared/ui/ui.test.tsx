@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Text } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { InlineBanner, PrimaryButton, TextButton, TextField } from './index';
+import { FormScreen, InlineBanner, PrimaryButton, TextButton, TextField } from './index';
 
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
@@ -77,5 +79,20 @@ describe('TextField', () => {
   it('does not accept input when disabled', () => {
     render(<TextField label="Email" value="" onChangeText={() => {}} disabled />);
     expect(screen.getByLabelText('Email').props.editable).toBe(false);
+  });
+});
+
+describe('FormScreen', () => {
+  it('renders the footer outside the scrolling content', () => {
+    const metrics = { frame: { x: 0, y: 0, width: 360, height: 800 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
+    render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <FormScreen title="Title" footer={<Text>pinned</Text>}>
+          <Text>field</Text>
+        </FormScreen>
+      </SafeAreaProvider>,
+    );
+    expect(screen.getByText('pinned')).toBeTruthy();
+    expect(screen.getByText('field')).toBeTruthy();
   });
 });

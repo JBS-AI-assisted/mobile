@@ -1,12 +1,11 @@
 import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
-import { View, type TextInput } from 'react-native';
+import { type TextInput } from 'react-native';
 
 import { useSession } from '@/entities/session';
-import { toFeedback, useApi, type Feedback } from '@/shared/api';
+import { toFeedback, useApi, withoutFieldError, type Feedback } from '@/shared/api';
 import { validateEmail, validateLoginPassword } from '@/shared/lib';
-import { space } from '@/shared/theme';
-import { InlineBanner, PrimaryButton, TextButton, TextField } from '@/shared/ui';
+import { FormScreen, InlineBanner, PrimaryButton, TextButton, TextField } from '@/shared/ui';
 
 import { signIn } from '../api/sign-in';
 
@@ -61,12 +60,15 @@ export function SignInForm({ notice, onForgotPassword }: Props) {
         : null;
 
   return (
-    <View style={{ gap: space.md }}>
+    <FormScreen title="Welcome back" footer={<PrimaryButton label="Sign in" loading={loading} onPress={submit} />}>
       {banner ? <InlineBanner variant={banner.variant} message={banner.message} /> : null}
       <TextField
         label="Email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(v) => {
+          setEmail(v);
+          setFeedback((f) => withoutFieldError(f, 'email'));
+        }}
         error={feedback.fields.email}
         disabled={loading}
         keyboardType="email-address"
@@ -81,7 +83,10 @@ export function SignInForm({ notice, onForgotPassword }: Props) {
         label="Password"
         password
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(v) => {
+          setPassword(v);
+          setFeedback((f) => withoutFieldError(f, 'password'));
+        }}
         error={feedback.fields.password}
         disabled={loading}
         autoCapitalize="none"
@@ -91,8 +96,7 @@ export function SignInForm({ notice, onForgotPassword }: Props) {
         onSubmitEditing={submit}
       />
       <TextButton label="Forgot password?" align="flex-end" onPress={onForgotPassword} />
-      <PrimaryButton label="Sign in" loading={loading} onPress={submit} />
       {/* "New here? Create an account" waits for contract v0.2 (age moves after sign-up). */}
-    </View>
+    </FormScreen>
   );
 }

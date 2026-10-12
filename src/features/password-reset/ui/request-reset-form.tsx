@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { View } from 'react-native';
 
-import { toFeedback, useApi, type Feedback } from '@/shared/api';
+import { toFeedback, useApi, withoutFieldError, type Feedback } from '@/shared/api';
 import { validateEmail } from '@/shared/lib';
-import { space } from '@/shared/theme';
-import { InlineBanner, PrimaryButton, TextButton, TextField } from '@/shared/ui';
+import { FormScreen, InlineBanner, PrimaryButton, TextButton, TextField } from '@/shared/ui';
 
 import { requestReset } from '../api/password-reset';
 
@@ -38,12 +36,24 @@ export function RequestResetForm({ onSent, onBack }: Props) {
   }
 
   return (
-    <View style={{ gap: space.md }}>
+    <FormScreen
+      title="Reset your password"
+      body="Enter your email. If there's an account, we'll send you a code to reset it."
+      footer={
+        <>
+          <PrimaryButton label="Send reset code" loading={loading} onPress={submit} />
+          <TextButton label="Back to sign in" onPress={onBack} />
+        </>
+      }
+    >
       {feedback.banner ? <InlineBanner variant={feedback.banner.variant} message={feedback.banner.message} /> : null}
       <TextField
         label="Email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(v) => {
+          setEmail(v);
+          setFeedback((f) => withoutFieldError(f, 'email'));
+        }}
         error={feedback.fields.email}
         disabled={loading}
         keyboardType="email-address"
@@ -53,8 +63,6 @@ export function RequestResetForm({ onSent, onBack }: Props) {
         returnKeyType="send"
         onSubmitEditing={submit}
       />
-      <PrimaryButton label="Send reset code" loading={loading} onPress={submit} />
-      <TextButton label="Back to sign in" onPress={onBack} />
-    </View>
+    </FormScreen>
   );
 }

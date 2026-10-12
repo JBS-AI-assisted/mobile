@@ -40,6 +40,15 @@ describe('SignInForm', () => {
     expect(mockedSignIn).not.toHaveBeenCalled();
   });
 
+  it('clears a field error as soon as the user edits that field', () => {
+    renderForm();
+    fireEvent.press(screen.getByLabelText('Sign in'));
+    expect(screen.getByText('Enter your email.')).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Email'), 'a');
+    expect(screen.queryByText('Enter your email.')).toBeNull();
+    expect(screen.getByText('Enter your password.')).toBeTruthy();
+  });
+
   it('shows one banner for wrong credentials and clears the password', async () => {
     mockedSignIn.mockResolvedValue({
       ok: false,

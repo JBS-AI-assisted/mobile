@@ -1,28 +1,36 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/shared/lib';
 import { fontScale, space, type } from '@/shared/theme';
 
-type Props = { title: string; body?: string; children: ReactNode };
+type Props = {
+  title: string;
+  body?: string;
+  /** Pinned below the scrolling fields, above the keyboard: the primary action lives here (thumb zone). */
+  footer?: ReactNode;
+  children: ReactNode;
+};
 
 /** Shared frame for form screens: safe areas, keyboard avoidance, scroll at large font sizes. */
-export function FormScreen({ title, body, children }: Props) {
+export function FormScreen({ title, body, footer, children }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      // Android 15+ is edge-to-edge, so the OS no longer resizes the window: pad on both platforms.
+      behavior="padding"
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
+        style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           flexGrow: 1,
           padding: space.md,
           paddingTop: insets.top + space.lg,
-          paddingBottom: insets.bottom + space.md,
+          paddingBottom: footer ? space.md : insets.bottom + space.md,
           gap: space.md,
         }}
       >
@@ -36,6 +44,11 @@ export function FormScreen({ title, body, children }: Props) {
         ) : null}
         <View style={{ gap: space.md }}>{children}</View>
       </ScrollView>
+      {footer ? (
+        <View style={{ paddingHorizontal: space.md, paddingBottom: insets.bottom + space.md, paddingTop: space.sm, gap: space.sm }}>
+          {footer}
+        </View>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

@@ -11,11 +11,13 @@ type Props = Omit<TextInputProps, 'style' | 'secureTextEntry' | 'editable'> & {
   disabled?: boolean;
   /** Password field: secure entry with a show/hide toggle. */
   password?: boolean;
+  /** Large numeric entry (one-time codes). */
+  numeric?: boolean;
   /** React 19: ref is a plain prop. For focusing the next field or the first error. */
   ref?: Ref<TextInput>;
 };
 
-export function TextField({ label, error, helper, disabled = false, password = false, ref, onFocus, onBlur, ...input }: Props) {
+export function TextField({ label, error, helper, disabled = false, password = false, numeric = false, ref, onFocus, onBlur, ...input }: Props) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -24,7 +26,7 @@ export function TextField({ label, error, helper, disabled = false, password = f
     if (error && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(error);
   }, [error]);
 
-  const borderColor = error ? colors.danger : focused ? colors.focusRing : colors.border;
+  const borderColor = error ? colors.danger : focused ? colors.focusRing : colors.borderStrong;
   const borderWidth = error || focused ? stroke.thick : stroke.thin;
 
   return (
@@ -61,7 +63,7 @@ export function TextField({ label, error, helper, disabled = false, password = f
             setFocused(false);
             onBlur?.(e);
           }}
-          style={[type.body, { flex: 1, color: disabled ? colors.textSecondary : colors.text, minHeight: hit.control - 2 * stroke.thick }]}
+          style={[numeric ? type.numeric : type.body, { flex: 1, color: disabled ? colors.textSecondary : colors.text, minHeight: hit.control - 2 * stroke.thick }]}
         />
         {password ? (
           <Pressable
