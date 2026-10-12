@@ -1,0 +1,261 @@
+# Auth: register, login, refresh, logout, password reset.
+# MASTER copy. Edit only in backend/api/. mobile/api/ is a synced copy (CI checks they match).
+openapi: 3.1.0
+info:
+  title: JSB Auth API
+  version: 0.1.0-draft
+  description: Served by auth-service. Part of the JSB API; see openapi.yaml for the combined entry point.
+servers:
+  - url: /v1
+tags:
+  - name: auth
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags:
+        - auth
+      operationId: register
+      summary: Create an account with email, password, and birth year
+      description: |
+        The app asks birth year before sign-up (age gate). The server enforces the minimum age itself (422 `validation_failed`, field `birthYear`, code `under_min_age`) and stores nothing when it fails. A common password is field `password`, code `too_common`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created, user signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "409":
+          description: Email already registered (`email_taken`). Sign-up reveals this, by CEO decision; sign-in and reset do not.
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Error
+        "422":
+          $ref: ./common.yaml#/components/responses/ValidationError
+        "429":
+          $ref: ./common.yaml#/components/responses/RateLimited
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /auth/login:
+    post:
+      tags:
+        - auth
+      operationId: login
+      summary: Sign in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "401":
+          description: Wrong email or password (`invalid_credentials`). Same response for unknown email.
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Error
+        "422":
+          $ref: ./common.yaml#/components/responses/ValidationError
+        "429":
+          $ref: ./common.yaml#/components/responses/RateLimited
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /auth/refresh:
+    post:
+      tags:
+        - auth
+      operationId: refreshTokens
+      summary: Exchange a refresh token for a new token pair (rotation)
+      description: |
+        The old refresh token is invalidated. Grace window: for 30 seconds after rotation, the previous refresh token is accepted once more and returns a new pair (covers a lost response on bad gym signal). Reuse after the grace window revokes the whole token family (theft detection) and returns 401. The client makes refresh single-flight.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "401":
+          description: Refresh token invalid, expired, or reused (`invalid_refresh_token`)
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Error
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      operationId: logout
+      summary: Revoke a refresh token (sign out this device)
+      description: |
+        The refresh token is the credential, so no access token is needed. Always 204, even for an unknown or expired token. The client signs out locally regardless.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "204":
+          description: Signed out
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /auth/password-reset/request:
+    post:
+      tags:
+        - auth
+      operationId: requestPasswordReset
+      summary: Email a 6-digit reset code
+      description: |
+        Always returns 202, whether or not the email exists. The code is single-use, valid for 30 minutes, and invalidated after 5 wrong attempts. A new request invalidates the previous code. Rate-limited per email and per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  $ref: ./common.yaml#/components/schemas/Email
+      responses:
+        "202":
+          description: If the account exists
+          a code was sent: null
+        "422":
+          $ref: ./common.yaml#/components/responses/ValidationError
+        "429":
+          $ref: ./common.yaml#/components/responses/RateLimited
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /auth/password-reset/confirm:
+    post:
+      tags:
+        - auth
+      operationId: confirmPasswordReset
+      summary: Set a new password using the emailed code
+      description: On success, all refresh tokens of the user are revoked (signs out other devices).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+                - newPassword
+              properties:
+                email:
+                  $ref: ./common.yaml#/components/schemas/Email
+                code:
+                  type: string
+                  pattern: ^[0-9]{6}$
+                newPassword:
+                  $ref: "#/components/schemas/Password"
+      responses:
+        "204":
+          description: Password changed. The client then signs in.
+        "400":
+          description: |
+            Code wrong or expired (`invalid_code`), or locked after 5 wrong attempts (`code_locked`, the user must request a new code).
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Error
+        "422":
+          $ref: ./common.yaml#/components/responses/ValidationError
+        "429":
+          $ref: ./common.yaml#/components/responses/RateLimited
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Password:
+      type: string
+      minLength: 10
+      maxLength: 128
+      description: No composition rules. The server rejects passwords on a common-password list (field code `too_common`).
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - birthYear
+      properties:
+        email:
+          $ref: ./common.yaml#/components/schemas/Email
+        password:
+          $ref: "#/components/schemas/Password"
+        birthYear:
+          $ref: ./common.yaml#/components/schemas/BirthYear
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          $ref: ./common.yaml#/components/schemas/Email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Not checked against the password rule at login, so old passwords still work.
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+    AuthTokens:
+      type: object
+      required:
+        - accessToken
+        - accessTokenExpiresIn
+        - refreshToken
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresIn:
+          type: integer
+          description: Seconds until the access token expires (900)
+        refreshToken:
+          type: string

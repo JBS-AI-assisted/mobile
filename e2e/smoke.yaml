@@ -1,0 +1,4 @@
+appId: com.aifitness.app
+---
+- launchApp
+- assertVisible: "JSB"

@@ -1,0 +1,223 @@
+# User: account (GET /me), profile, account deletion.
+# MASTER copy. Edit only in backend/api/. mobile/api/ is a synced copy (CI checks they match).
+openapi: 3.1.0
+info:
+  title: JSB User API
+  version: 0.1.0-draft
+  description: Served by user-service. Part of the JSB API; see openapi.yaml for the combined entry point.
+servers:
+  - url: /v1
+tags:
+  - name: profile
+  - name: account
+security:
+  - bearerAuth: []
+paths:
+  /me/profile:
+    get:
+      tags:
+        - profile
+      operationId: getProfile
+      summary: Get the signed-in user's profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        "404":
+          description: Onboarding not completed yet (`profile_not_found`)
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Error
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+    put:
+      tags:
+        - profile
+      operationId: putProfile
+      summary: Create or replace the profile (end of onboarding, or edit)
+      description: Server re-validates the minimum age from `birthYear` (`under_min_age`, 422).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Saved profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        "422":
+          $ref: ./common.yaml#/components/responses/ValidationError
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /me:
+    get:
+      tags:
+        - account
+      operationId: getMe
+      summary: The signed-in account, and where the app should go next
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+  /me/deletion:
+    post:
+      tags:
+        - account
+      operationId: deleteAccount
+      summary: Permanently delete the account and all its data (W43)
+      description: |
+        POST rather than DELETE, because proxies and some clients drop DELETE bodies. Requires the current password. Deletes the user from the live database immediately and revokes all tokens. Backups are purged within 30 days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+      responses:
+        "204":
+          description: Account deleted
+        "401":
+          $ref: ./common.yaml#/components/responses/Unauthorized
+        "403":
+          description: Wrong password (`invalid_password`)
+          content:
+            application/json:
+              schema:
+                $ref: ./common.yaml#/components/schemas/Error
+        "429":
+          $ref: ./common.yaml#/components/responses/RateLimited
+        default:
+          $ref: ./common.yaml#/components/responses/ServerError
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Sex:
+      type: string
+      enum:
+        - female
+        - male
+        - prefer_not_to_say
+    TrainingExperience:
+      type: string
+      enum:
+        - just_starting
+        - under_one_year
+        - one_to_three_years
+        - three_plus_years
+    Sport:
+      type: string
+      description: Draft list, pending CEO confirmation.
+      enum:
+        - strength_training
+        - running
+        - cycling
+        - swimming
+        - bodyweight
+        - hiit
+        - yoga_mobility
+        - team_sports
+        - martial_arts
+    ProfileInput:
+      type: object
+      required:
+        - sex
+        - heightCm
+        - weightKg
+        - trainingExperience
+        - sports
+        - goal
+      properties:
+        birthYear:
+          allOf:
+            - $ref: ./common.yaml#/components/schemas/BirthYear
+          description: Optional. Set at register. Send only to correct it; the server re-checks minAge.
+        sex:
+          $ref: "#/components/schemas/Sex"
+        heightCm:
+          type: number
+          minimum: 100
+          maximum: 250
+        weightKg:
+          type: number
+          minimum: 30
+          maximum: 300
+        trainingExperience:
+          $ref: "#/components/schemas/TrainingExperience"
+        sports:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Sport"
+        goal:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Free text, e.g. "30 pull-ups". May contain health details, so it is encrypted at rest and never logged.
+        limitations:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+          description: Optional injuries or limitations. PENDING CEO decision; remove if declined. Encrypted at rest, never logged.
+    Profile:
+      allOf:
+        - $ref: "#/components/schemas/ProfileInput"
+        - type: object
+          required:
+            - birthYear
+            - updatedAt
+          properties:
+            birthYear:
+              $ref: ./common.yaml#/components/schemas/BirthYear
+            updatedAt:
+              type: string
+              format: date-time
+    Me:
+      type: object
+      required:
+        - id
+        - email
+        - birthYear
+        - onboardingCompleted
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          $ref: ./common.yaml#/components/schemas/Email
+        birthYear:
+          $ref: ./common.yaml#/components/schemas/BirthYear
+        onboardingCompleted:
+          type: boolean
+          description: False until PUT /me/profile succeeds. The app routes to onboarding when false.

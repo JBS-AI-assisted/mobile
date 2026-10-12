@@ -1,0 +1,43 @@
+# Entry point. Paths live in auth.yaml and user.yaml; shared pieces in common.yaml.
+openapi: 3.1.0
+info:
+  title: JSB API
+  version: 0.1.0-draft
+  description: |
+    DRAFT v0.1 by Cristiano, 2026-10-09. Split into files by domain: auth.yaml, user.yaml, common.yaml.
+    MASTER copy lives in backend/api/. mobile/api/ is a synced copy; CI fails if they differ. NOT approved, so nobody implements it until the CEO signs off.
+    Scope (W42): auth (register, login, refresh, logout, password reset by emailed code), onboarding profile, account deletion (W43), shared error format.
+    Conventions: - JSON everywhere. Errors use the `Error` schema. - Units are metric on the wire (cm, kg). The app converts by locale. - Health fields (profile) are sensitive: encrypted at rest, never logged. - Access tokens are short-lived (15 min). Refresh tokens rotate on every use (see ADR 0001). - Email is trimmed and lowercased by the server everywhere, so "A@b.co" and "a@b.co" are one account. - Every 422 is `validation_failed` with per-field codes in `fields`. - Every operation may also return `default` (Error), e.g. 5xx.
+servers:
+  - url: /v1
+tags:
+  - name: auth
+  - name: profile
+  - name: account
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    $ref: ./auth.yaml#/paths/~1auth~1register
+  /auth/login:
+    $ref: ./auth.yaml#/paths/~1auth~1login
+  /auth/refresh:
+    $ref: ./auth.yaml#/paths/~1auth~1refresh
+  /auth/logout:
+    $ref: ./auth.yaml#/paths/~1auth~1logout
+  /auth/password-reset/request:
+    $ref: ./auth.yaml#/paths/~1auth~1password-reset~1request
+  /auth/password-reset/confirm:
+    $ref: ./auth.yaml#/paths/~1auth~1password-reset~1confirm
+  /me/profile:
+    $ref: ./user.yaml#/paths/~1me~1profile
+  /me:
+    $ref: ./user.yaml#/paths/~1me
+  /me/deletion:
+    $ref: ./user.yaml#/paths/~1me~1deletion
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

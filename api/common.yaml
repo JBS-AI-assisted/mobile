@@ -1,0 +1,95 @@
+# Shared pieces: error format, shared responses, shared schemas.
+# MASTER copy. Edit only in backend/api/. mobile/api/ is a synced copy (CI checks they match).
+components:
+  responses:
+    ServerError:
+      description: Unexpected error (`internal_error`), any 5xx
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing, invalid, or expired access token (`unauthorized`). The client refreshes once, then signs out.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationError:
+      description: Input failed validation (`validation_failed`). See `fields`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Too many requests (`rate_limited`)
+      headers:
+        Retry-After:
+          description: Seconds until the client may retry
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      description: Shared error format for every non-2xx response.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+          description: Human-readable, English, for debugging. The app shows its own copy.
+        fields:
+          type: array
+          description: Per-field problems, for `validation_failed`.
+          items:
+            type: object
+            required:
+              - field
+              - code
+            properties:
+              field:
+                type: string
+                examples:
+                  - password
+                  - birthYear
+                  - heightCm
+              code:
+                type: string
+                description: Field-level code. Known values include required, invalid_format, too_short, too_long, out_of_range, too_common, under_min_age.
+                examples:
+                  - too_common
+                  - under_min_age
+                  - out_of_range
+        requestId:
+          type: string
+          description: Correlates with server logs (which contain no personal data).
+    ErrorCode:
+      type: string
+      description: |
+        Stable machine-readable code. The app maps on this, never on `message`. The server may add codes later, and the client treats unknown codes as generic.
+      enum:
+        - validation_failed
+        - unauthorized
+        - invalid_credentials
+        - email_taken
+        - invalid_refresh_token
+        - invalid_code
+        - code_locked
+        - invalid_password
+        - profile_not_found
+        - rate_limited
+        - internal_error
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+    BirthYear:
+      type: integer
+      minimum: 1900
+      description: Age must be >= minAge (14, server config, may vary by region). Permissive reading (current year - birthYear >= minAge), pending legal.
