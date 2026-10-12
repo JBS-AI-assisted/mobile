@@ -23,8 +23,15 @@ Install: macOS/Linux `curl -Ls "https://get.maestro.mobile.dev" | bash`. Windows
 Needs a running emulator/simulator with the dev build installed. Flows live in `e2e/*.yaml`.
 `appId` in `e2e/smoke.yaml` is a placeholder until the bundle id is decided (CEO/Cristiano).
 
+## Architecture (Feature-Sliced Design, ADR 0003)
+Layers, top to bottom: `app` > `pages` > `widgets` > `features` > `entities` > `shared`. A layer imports only from layers below it; slices never import each other; import a slice only through its `index.ts`. ESLint enforces this.
+- `app/` (project root): Expo Router route files, one line each, re-exporting a page. `app.json` sets `extra.router.root = "app"` so the router does not pick `src/app`.
+- `src/app/`: FSD app layer (providers, wiring).
+- `src/pages/<name>/`: a screen, composed from features. `src/features/<name>/`: one user action (`ui/`, `api/`, `model/`). `src/entities/<name>/`: a business thing (session).
+- `src/shared/`: `ui` (design-system components), `lib` (hooks, validation), `api` (typed client, error copy), `config`, `theme` (tokens). Shared hooks live in `shared/lib/hooks`.
+- Tests sit next to the code (`*.test.ts(x)`), never in `app/`. All tooling is TypeScript (`eslint.config.ts`, `scripts/*.ts` run with jiti).
+
 ## Rules
-- Colors, spacing, type only from `src/theme/tokens.ts` (Leo owns it).
-- Tests go in `src/__tests__/`, never in `src/app/` (routes).
+- Colors, spacing, type only from `src/shared/theme/tokens.ts` (Leo owns it).
 - The API contract master is `../backend/api/` (CEO/Cristiano). `mobile/api/` is a synced copy: never edit it by hand, run `npm run sync:api` after the master changes. CI fails if they differ.
-- Types are generated from `api/openapi.yaml` with `npm run gen:api` into `src/api/schema.d.ts` (checked in; CI fails if stale). Do not hand-write requests.
+- Types are generated from `api/openapi.yaml` with `npm run gen:api` into `src/shared/api/schema.d.ts` (checked in; CI fails if stale). Do not hand-write requests.
