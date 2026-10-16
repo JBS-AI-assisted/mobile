@@ -1,4 +1,4 @@
-import { createApiClient, isAuthRoute, type TokenSource } from './client';
+import { createApiClient, createAuthMiddleware, isAuthRoute, type TokenSource } from './client';
 
 function setup(handler: (req: Request) => Response | Promise<Response>, signedIn = true) {
   let token: string | null = signedIn ? 'old' : null;
@@ -43,6 +43,18 @@ describe('api client', () => {
     const { client } = setup(() => json(401, { code: 'unauthorized' }), false);
     const { response } = await client.GET('/me');
     expect(response.status).toBe(401);
+  });
+});
+
+describe('auth middleware', () => {
+  it('leaves non-401 responses alone by returning undefined', async () => {
+    // On device fetch's Response is not instanceof the global one; openapi-fetch throws if a returned
+    // response is not recognised, so the middleware must only return a value when it replaced it.
+    const session: TokenSource = { getAccessToken: async () => null, refresh: async () => null };
+    const mw = createAuthMiddleware(session, fetch as never, 'https://api.test');
+    const request = new Request('https://api.test/auth/password-reset/confirm', { method: 'POST' });
+    const out = await mw.onResponse?.({ request, response: json(400, { code: 'code_locked' }) } as never);
+    expect(out).toBeUndefined();
   });
 });
 

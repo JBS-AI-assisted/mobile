@@ -32,6 +32,8 @@ export interface ApiClientOptions {
 /**
  * Bearer token on every non-auth request. On 401: refresh once (single-flight, in the session),
  * then replay the request once. If the refresh fails the 401 is returned as is.
+ * Returns undefined (not the response) when nothing changes: on device, fetch's Response is not
+ * `instanceof` the global Response, and openapi-fetch throws on a returned response it cannot recognise.
  */
 export function createAuthMiddleware(session: TokenSource, doFetch: typeof globalThis.fetch, baseUrl: string): Middleware {
   const replayable = new WeakMap<Request, Request>();
@@ -44,14 +46,20 @@ export function createAuthMiddleware(session: TokenSource, doFetch: typeof globa
       return request;
     },
     async onResponse({ request, response }) {
-      if (response.status !== 401 || isAuthRoute(request.url, baseUrl)) return response;
+      if (response.status !== 401 || isAuthRoute(request.url, baseUrl)) return undefined;
       const copy = replayable.get(request);
       replayable.delete(request);
-      if (!copy) return response;
+      if (!copy) return undefined;
       const token = await session.refresh();
-      if (!token) return response;
+      if (!token) return undefined;
       copy.headers.set('Authorization', `Bearer ${token}`);
-      return doFetch(copy);
+      const replayed = await doFetch(copy);
+      const noBody = replayed.status === 204 || replayed.status === 205;
+      return new Response(noBody ? null : await replayed.text(), {
+        status: replayed.status,
+        statusText: replayed.statusText,
+        headers: replayed.headers,
+      });
     },
   };
 }
