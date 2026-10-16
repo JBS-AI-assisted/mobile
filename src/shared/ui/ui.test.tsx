@@ -44,6 +44,15 @@ describe('TextButton', () => {
     fireEvent.press(screen.getByRole('button', { name: 'Forgot password?' }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it('ignores taps and reports busy while loading', () => {
+    const onPress = jest.fn();
+    render(<TextButton label="Sending code" onPress={onPress} loading />);
+    const button = screen.getByRole('button', { name: 'Sending code' });
+    fireEvent.press(button);
+    expect(onPress).not.toHaveBeenCalled();
+    expect(button.props.accessibilityState).toMatchObject({ busy: true });
+  });
 });
 
 describe('InlineBanner', () => {

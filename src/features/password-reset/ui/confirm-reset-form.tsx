@@ -27,7 +27,7 @@ export function ConfirmResetForm({ email, onDone }: Props) {
 
   const locked = feedback.banner?.primaryAction === 'resendCode';
   const resendLabel = resending
-    ? 'Sending...'
+    ? 'Sending code'
     : sentNotice
       ? 'Code sent'
       : remaining > 0
@@ -80,8 +80,9 @@ export function ConfirmResetForm({ email, onDone }: Props) {
       <PrimaryButton label="Set new password" loading={loading} onPress={submit} />
       <TextButton
         label={resendLabel}
+        loading={resending}
         muted={remaining > 0 || sentNotice}
-        disabled={remaining > 0 || resending || sentNotice}
+        disabled={remaining > 0 || sentNotice}
         onPress={resend}
       />
     </>
